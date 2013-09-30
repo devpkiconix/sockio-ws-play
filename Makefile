@@ -1,6 +1,6 @@
-httpget: httpget.c
-	gcc httpget.c -o httpget -L./libwebsockets/build/lib -lwebsockets
+sockio-test: sockio-test.c
+	gcc -g  sockio-test.c -o sockio-test -L./libwebsockets/build/lib -lwebsockets
 
 
 clean:
-	rm *.o httpget
+	rm -f *.o sockio-test

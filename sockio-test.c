@@ -15,8 +15,7 @@ typedef struct  {
 } SockIoHandshakeData;
 enum demo_protocols {
 
-  PROTOCOL_DUMB_INCREMENT,
-  PROTOCOL_LWS_MIRROR,
+  TF_ADAPTER_HEARTBEAT,
 
   /* always last */
   DEMO_PROTOCOL_COUNT
@@ -25,7 +24,7 @@ enum demo_protocols {
 
 /* Forward declarations */
 static int
-callback_dumb_increment(struct libwebsocket_context *this,
+callback_tf1_adapter_heartbeat(struct libwebsocket_context *this,
       struct libwebsocket *wsi,
       enum libwebsocket_callback_reasons reason,
                  void *user, void *in, size_t len);
@@ -45,8 +44,8 @@ static void connectWs(
 
   static struct libwebsocket_protocols protocols[] = {
     {
-      "dumb-increment-protocol",
-      callback_dumb_increment,
+      "tf1-adapter-heartbeat",
+      callback_tf1_adapter_heartbeat,
       0,
       20,
     },
@@ -63,21 +62,24 @@ int main(int argc, char **argv)
   char *page;
   SockIoHandshakeData* pHandshakeData = NULL;
 
-  if(argc < 4){
-    usage();
-    exit(2);
-  }  
-  host = argv[1];
-  port = atoi(argv[2]);
-  page = argv[3];
+  host = "localhost";
+  port = 3000;
+  page = "socket.io/1/websocket";
 
   pHandshakeData = handshake(host, port, page);
   fprintf(stderr, "sessionId: %20s\nheartbeatInterval: %d\nconnTimeoutInterval: %d\n", pHandshakeData->sessionId,pHandshakeData->heartbeatInterval, pHandshakeData->connTimeoutInterval );
 
+  lws_set_log_level(4, NULL);
   struct lws_context_creation_info info;
   struct libwebsocket_context *context;
   info.port = CONTEXT_PORT_NO_LISTEN;
   info.protocols = protocols;
+  info.gid = -1;
+  info.uid = -1;
+  info.ssl_cert_filepath = NULL;
+  info.ssl_private_key_filepath = NULL;
+  info.ssl_cipher_list = NULL;
+  info.extensions = libwebsocket_get_internal_extensions();
   context = libwebsocket_create_context(&info);
 
   if (context == NULL) {
@@ -100,20 +102,27 @@ connectWs(
   int n = 0;
   int ret = 0;
   int use_ssl = 0;
-  struct libwebsocket *wsi_dumb;
+  struct libwebsocket *websock;
   int ietf_version = -1; /* latest */
 
 
-  wsi_dumb = libwebsocket_client_connect(context, address, port, use_ssl,
+  websock = libwebsocket_client_connect(context, address, port, use_ssl,
       "/", address, address,
-       protocols[PROTOCOL_DUMB_INCREMENT].name, ietf_version);
+       protocols[TF_ADAPTER_HEARTBEAT].name, ietf_version);
 
-  if (wsi_dumb == NULL) {
+  if (websock == NULL) {
     fprintf(stderr, "libwebsocket connect failed\n");
     ret = 1;
     goto bail;
   }
 
+  n = 0; 
+  int was_closed = 0, force_exit=0;
+  while (n >= 0 && !was_closed && !force_exit) {
+    n = libwebsocket_service(context, 10);
+
+  }
+  fprintf(stderr, "Exited while loop\n");
   return;
 
   bail:
@@ -279,10 +288,10 @@ static char *build_get_query(const char *host, const char *page)
 }
 
 
-/* dumb_increment protocol */
+/* tf1_adapter_heartbeat protocol */
 
 static int
-callback_dumb_increment(struct libwebsocket_context *this,
+callback_tf1_adapter_heartbeat(struct libwebsocket_context *this,
       struct libwebsocket *wsi,
       enum libwebsocket_callback_reasons reason,
                  void *user, void *in, size_t len)
@@ -294,7 +303,7 @@ callback_dumb_increment(struct libwebsocket_context *this,
   switch (reason) {
 
   case LWS_CALLBACK_CLIENT_ESTABLISHED:
-    fprintf(stderr, "callback_dumb_increment: LWS_CALLBACK_CLIENT_ESTABLISHED\n");
+    fprintf(stderr, "callback_tf1_adapter_heartbeat: LWS_CALLBACK_CLIENT_ESTABLISHED\n");
     break;
 
   case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
