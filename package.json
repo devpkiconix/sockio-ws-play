@@ -1,0 +1,17 @@
+{
+  "name": "SockIoTest",
+  "description": "A simple test client to understand the socket.io protocol",
+  "version": "0.0.1",
+  "private": true,
+  "author": "prasannateamf1",
+  "engines": {
+    "node": "0.6.18",
+    "npm": "1.1.9"
+  },
+  "dependencies": {
+    "websocket": "latest",
+    "socket.io": "latest"
+  },
+  "devDependencies": {
+  }
+}
