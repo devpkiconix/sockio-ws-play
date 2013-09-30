@@ -17,9 +17,9 @@ var socket = io.listen(server);
 socket.on('connection', function(client){ 
 	
 	// Success!  Now listen to messages to be received
-	client.on('message',function(event){ 
-		client.emit("got it!", event.)
-	});
+	//client.on('message',function(event){ 
+	//	client.emit("got it!");
+	//});
 	client.on('disconnect',function(){
 		//clearInterval(interval);
 		console.log('Server has disconnected');

@@ -82,6 +82,7 @@ handshakeStart = ()->
             str += chunk
 
         response.on 'end', ()->
+            console.log "handshake response:", str
             #sampleMsg = "cKe7qpdAzOuh80YzNoU-:60:60:websocket,flashsocket,htmlfile,xhr-polling,jsonp-polling"
             re = /([a-zA-Z0-9-]+)?:(\d*):(\d*)(.*)$/
             match = re.exec(str)

@@ -95,6 +95,7 @@
       });
       return response.on('end', function() {
         var connTimeout, hbTimeout, match, re, sessionId, transports, _ref1;
+        console.log("handshake response:", str);
         re = /([a-zA-Z0-9-]+)?:(\d*):(\d*)(.*)$/;
         match = re.exec(str);
         if (!match) {
