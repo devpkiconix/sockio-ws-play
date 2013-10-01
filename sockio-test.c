@@ -16,7 +16,7 @@ typedef struct  {
 } SockIoHandshakeData;
 enum demo_protocols {
 
-  TF_ADAPTER_HEARTBEAT,
+  CUSTOM_CHANNEL,
 
   /* always last */
   DEMO_PROTOCOL_COUNT
@@ -25,7 +25,7 @@ enum demo_protocols {
 
 /* Forward declarations */
 static int
-callback_tf1_adapter_heartbeat(struct libwebsocket_context *this,
+callback_customChannel(struct libwebsocket_context *this,
       struct libwebsocket *wsi,
       enum libwebsocket_callback_reasons reason,
                  void *user, void *in, size_t len);
@@ -45,8 +45,8 @@ static void connectWs(
 
   static struct libwebsocket_protocols protocols[] = {
     {
-      "tf1-adapter-heartbeat",
-      callback_tf1_adapter_heartbeat,
+      "customChannel",
+      callback_customChannel,
       0,
       20,
     },
@@ -130,10 +130,11 @@ connectWs(
 
   n = 0; 
 
+
   while (n >= 0 && !was_closed && !force_exit) {
       
     n = libwebsocket_service(context, 10);
-    /* libwebsocket_callback_on_writable_all_protocol(protocols);   */
+
   }
   fprintf(stderr, "Exited while loop\n");
   return;
@@ -160,7 +161,6 @@ connectWs1(
 
   websock = libwebsocket_client_connect(context, address, port, use_ssl,
       "/", address, "origin",
-       /*protocols[TF_ADAPTER_HEARTBEAT].name,*/ 
       NULL, ietf_version);
 
   if (websock == NULL) {
@@ -341,10 +341,10 @@ static char *build_get_query(const char *host, const char *page)
 }
 
 
-/* tf1_adapter_heartbeat protocol */
+/* customChannel protocol */
 
 static int
-callback_tf1_adapter_heartbeat(struct libwebsocket_context *this,
+callback_customChannel(struct libwebsocket_context *context,
       struct libwebsocket *wsi,
       enum libwebsocket_callback_reasons reason,
                  void *user, void *in, size_t len)
@@ -355,7 +355,9 @@ callback_tf1_adapter_heartbeat(struct libwebsocket_context *this,
   switch (reason) {
 
   case LWS_CALLBACK_CLIENT_ESTABLISHED:
-    fprintf(stderr, "callback_tf1_adapter_heartbeat: LWS_CALLBACK_CLIENT_ESTABLISHED\n");
+    fprintf(stderr, "callback_customChannel: LWS_CALLBACK_CLIENT_ESTABLISHED\n");
+
+    /*libwebsocket_callback_on_writable(context, wsi);*/
     break;
 
   case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
@@ -371,6 +373,7 @@ callback_tf1_adapter_heartbeat(struct libwebsocket_context *this,
   case LWS_CALLBACK_CLIENT_RECEIVE:
     ((char *)in)[len] = '\0';
     fprintf(stderr, "rx %d '%s'\n", (int)len, (char *)in);
+    libwebsocket_callback_on_writable(context, wsi);
     break;
 
   /* because we are protocols[0] ... */
@@ -391,18 +394,23 @@ callback_tf1_adapter_heartbeat(struct libwebsocket_context *this,
 
     break;
 
-  case LWS_CALLBACK_SERVER_WRITEABLE: {
-  char* pBuf = "3:25::hello server";
-  int n = 0;
-    n = libwebsocket_write(wsi, pBuf, strlen(pBuf), LWS_WRITE_TEXT);
-    if (n < 0) {
-      lwsl_err("ERROR %d writing to socket, hanging up\n", n);
-      return 1;
-    }
-    if (n < (int)strlen(pBuf)){
-      lwsl_err("Partial write\n");
-      return -1;
-    }
+  case LWS_CALLBACK_CLIENT_WRITEABLE: {
+	unsigned char buf[LWS_SEND_BUFFER_PRE_PADDING + 4096 +
+						  LWS_SEND_BUFFER_POST_PADDING];
+	char* pBuf = (char*)(buf + LWS_SEND_BUFFER_POST_PADDING);
+	static int msgId = 1;
+	// the 3 below is the socket.io code for "MESSAGE"
+	sprintf(pBuf, "3:%d::hello node server!", msgId++);
+	int n = 0;
+	n = libwebsocket_write(wsi, pBuf, strlen(pBuf), LWS_WRITE_TEXT);
+	if (n < 0) {
+	  lwsl_err("ERROR %d writing to socket, hanging up\n", n);
+	  return 1;
+	}
+	if (n < (int)strlen(pBuf)){
+	  lwsl_err("Partial write\n");
+	  return -1;
+	}
   }
     break;
 
