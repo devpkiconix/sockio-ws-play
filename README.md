@@ -31,8 +31,7 @@ OR
    - Checkout libwebsockets if you haven't already
    - Build libwebsockets:
 ```
-       $ git submodule init && git submodule update
-       $ (cd libwesockets && mkdir build && cd build && cmake .. && make )
+       $ git submodule init && git submodule update && (cd libwesockets && mkdir build && cd build && cmake .. && make )
 ```
    - Build c code:
 
