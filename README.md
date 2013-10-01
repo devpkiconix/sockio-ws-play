@@ -28,15 +28,25 @@ OR
 
 ## Running C code with JS socket.io server
 
- - Checkout libwebsockets if you haven't already
- - Build libwebsockets:
-     $ (cd libwesockets && mkdir build && cd build && cmake .. && make )
- - Build c code:
-     $ make
- - Run server:
+   - Checkout libwebsockets if you haven't already
+   - Build libwebsockets:
+```
+       $ git submodule init && git submodule update
+       $ (cd libwesockets && mkdir build && cd build && cmake .. && make )
+```
+   - Build c code:
+
+        $ make
+
+   - Run server:
+```   
      node server.js &
- - Run client 
+```     
+
+   - Run client 
+```   
      LD_LIBRARY_PATH=./libbwebsockets/build/lb ./sockio-test
+```
 
 You will see that the sockio C client connects and receives heartbeat
 messages from the remote server.
