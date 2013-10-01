@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <netdb.h>
 #include <string.h>
+#include <signal.h>
 
 #include "libwebsockets/lib/libwebsockets.h"
 
@@ -55,7 +56,7 @@ static void connectWs(
 
 #define USERAGENT "HTMLGET 1.0"
 
-int force_exit=0;
+static int force_exit=0, was_closed = 0;
 
 void sighandler(int sig)
 {
@@ -128,11 +129,11 @@ connectWs(
   }
 
   n = 0; 
-  int was_closed = 0;
+
   while (n >= 0 && !was_closed && !force_exit) {
       
     n = libwebsocket_service(context, 10);
-    libwebsocket_callback_on_writable_all_protocol(protocols);  
+    /* libwebsocket_callback_on_writable_all_protocol(protocols);   */
   }
   fprintf(stderr, "Exited while loop\n");
   return;
@@ -169,7 +170,7 @@ connectWs1(
   }
 
   n = 0; 
-  int was_closed = 0;
+
   while (n >= 0 && !was_closed && !force_exit) {
     n = libwebsocket_service(context, 10);
 
@@ -348,7 +349,7 @@ callback_tf1_adapter_heartbeat(struct libwebsocket_context *this,
       enum libwebsocket_callback_reasons reason,
                  void *user, void *in, size_t len)
 {
-  int was_closed;
+
   int deny_deflate = 0;
   int deny_mux;
   switch (reason) {
