@@ -54,22 +54,32 @@ static void connectWs(
 
 
 #define USERAGENT "HTMLGET 1.0"
- 
+
+int force_exit=0;
+
+void sighandler(int sig)
+{
+  force_exit = 1;
+}
+
 int main(int argc, char **argv)
 {
   char *host;
   int  port;
   char *page;
+  int debug_level = 519;
   SockIoHandshakeData* pHandshakeData = NULL;
 
-  host = "localhost";
+  signal(SIGINT, sighandler);
+
+  host = "127.0.0.1";
   port = 3000;
-  page = "socket.io/1/websocket";
+  page = "/socket.io/1/websocket"; 
 
   pHandshakeData = handshake(host, port, page);
   fprintf(stderr, "sessionId: %20s\nheartbeatInterval: %d\nconnTimeoutInterval: %d\n", pHandshakeData->sessionId,pHandshakeData->heartbeatInterval, pHandshakeData->connTimeoutInterval );
 
-  lws_set_log_level(4, NULL);
+  lws_set_log_level(debug_level, lwsl_emit_syslog);
   struct lws_context_creation_info info;
   struct libwebsocket_context *context;
   info.port = CONTEXT_PORT_NO_LISTEN;
@@ -91,7 +101,6 @@ int main(int argc, char **argv)
   return 0;
 }
 
-
 static void 
 connectWs(
     SockIoHandshakeData* pHandshakeData,
@@ -105,10 +114,12 @@ connectWs(
   struct libwebsocket *websock;
   int ietf_version = -1; /* latest */
 
-
-  websock = libwebsocket_client_connect(context, address, port, use_ssl,
-      "/", address, address,
-       protocols[TF_ADAPTER_HEARTBEAT].name, ietf_version);
+  char uri[1024];
+  sprintf(uri, "/socket.io/1/websocket/%s", pHandshakeData->sessionId);
+    lwsl_notice("Client connecting to %s:%u....\n", address, port);
+  websock = libwebsocket_client_connect(context, address,
+        port, use_ssl, uri, address, address,
+         NULL, -1);
 
   if (websock == NULL) {
     fprintf(stderr, "libwebsocket connect failed\n");
@@ -117,7 +128,48 @@ connectWs(
   }
 
   n = 0; 
-  int was_closed = 0, force_exit=0;
+  int was_closed = 0;
+  while (n >= 0 && !was_closed && !force_exit) {
+      
+    n = libwebsocket_service(context, 10);
+    libwebsocket_callback_on_writable_all_protocol(protocols);  
+  }
+  fprintf(stderr, "Exited while loop\n");
+  return;
+
+  bail:
+    fprintf(stderr, "Error connecting WS\n");
+  return;
+  }
+
+
+static void 
+connectWs1(
+    SockIoHandshakeData* pHandshakeData,
+    const char* address, int port, 
+    struct libwebsocket_context *context
+  )
+  {
+  int n = 0;
+  int ret = 0;
+  int use_ssl = 0;
+  struct libwebsocket *websock;
+  int ietf_version = -1; /* latest */
+
+
+  websock = libwebsocket_client_connect(context, address, port, use_ssl,
+      "/", address, "origin",
+       /*protocols[TF_ADAPTER_HEARTBEAT].name,*/ 
+      NULL, ietf_version);
+
+  if (websock == NULL) {
+    fprintf(stderr, "libwebsocket connect failed\n");
+    ret = 1;
+    goto bail;
+  }
+
+  n = 0; 
+  int was_closed = 0;
   while (n >= 0 && !was_closed && !force_exit) {
     n = libwebsocket_service(context, 10);
 
@@ -299,7 +351,6 @@ callback_tf1_adapter_heartbeat(struct libwebsocket_context *this,
   int was_closed;
   int deny_deflate = 0;
   int deny_mux;
-
   switch (reason) {
 
   case LWS_CALLBACK_CLIENT_ESTABLISHED:
@@ -337,6 +388,21 @@ callback_tf1_adapter_heartbeat(struct libwebsocket_context *this,
       return 1;
     }
 
+    break;
+
+  case LWS_CALLBACK_SERVER_WRITEABLE: {
+  char* pBuf = "3:25::hello server";
+  int n = 0;
+    n = libwebsocket_write(wsi, pBuf, strlen(pBuf), LWS_WRITE_TEXT);
+    if (n < 0) {
+      lwsl_err("ERROR %d writing to socket, hanging up\n", n);
+      return 1;
+    }
+    if (n < (int)strlen(pBuf)){
+      lwsl_err("Partial write\n");
+      return -1;
+    }
+  }
     break;
 
   default:
